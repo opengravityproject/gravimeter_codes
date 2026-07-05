@@ -1,39 +1,30 @@
 # Gravimeter Code Instructions
 
-This repository contains utility code for the Open Gravity gravimeter setup.
+This repository contains utility code for operating a camera-based gravimeter data collection system.
+
+## Overview
+
+The current capture script periodically records still images from a Raspberry Pi camera while controlling an external illumination or laser output through a GPIO pin. The images are saved locally with timestamped filenames so they can be transferred later into a separate processing pipeline.
 
 ## Files
 
-- `interval_capture_2.py` - runs on the Roberto Raspberry Pi. It captures one image every 60 seconds, turns the laser on before each capture, saves the image, then turns the laser back off.
+- `interval_capture_2.py` - captures still images at a fixed interval while toggling a configured GPIO output around each exposure.
 
-## Roberto Image Capture
+## Requirements
 
-Use `interval_capture_2.py` on the Roberto Raspberry Pi, where the camera and laser GPIO control are connected.
+Run the capture script on a Raspberry Pi or compatible system with:
 
-### What the Script Does
+- Python 3
+- `picamera2`
+- `pinctrl`
+- A configured camera module
+- A GPIO-connected illumination or laser control line, if that part of the setup is used
 
-- Uses `picamera2` for still image capture.
-- Uses GPIO pin `4` through `pinctrl` to control the laser.
-- Turns the laser on for 5 seconds before each capture.
-- Saves images into a local `data_images` directory.
-- Names captures like `capture_YYYYMMDD_HHMMSS_microseconds.jpg`.
-- Repeats every `60` seconds until stopped.
-- On `Ctrl+C`, turns the laser off and stops the camera.
+The script assumes `pinctrl` can set the configured pin high and low. If the hardware uses a different control method, update the GPIO helper functions before running it.
 
-### Run on Roberto
+## Configuration
 
-From the Roberto device:
-
-```bash
-cd ~/camera_test
-python3 interval_capture_2.py
-```
-
-Leave the process running while collecting image data. Stop it with `Ctrl+C` so the cleanup handler turns the laser off and stops the camera.
-
-### Configuration
-
-The main settings are at the top of `interval_capture_2.py`:
+The main settings are near the top of `interval_capture_2.py`:
 
 ```python
 PIN = 4
@@ -41,47 +32,59 @@ INTERVAL_SECONDS = 60
 CAPTURE_DIR = "data_images"
 ```
 
-Change `INTERVAL_SECONDS` to capture more or less frequently. Change `CAPTURE_DIR` only if the downstream image sync and processing workflow is updated to match.
+- `PIN` is the GPIO pin used for illumination control.
+- `INTERVAL_SECONDS` is the target time between capture starts.
+- `CAPTURE_DIR` is the directory where image files are written.
 
-## Syncing Captures for Processing
+Adjust these values to match the hardware and data collection plan before starting a long run.
 
-New Roberto images are normally synced into the Open Gravity processing workspace with an ignore-existing rsync pattern so only new images are copied.
+## Running Image Capture
 
-Current processing destination:
+From the directory containing the script:
+
+```bash
+python3 interval_capture_2.py
+```
+
+The script will:
+
+1. Create the capture directory if it does not already exist.
+2. Start the camera.
+3. Turn the configured GPIO output on before each image.
+4. Save a timestamped JPG image.
+5. Turn the GPIO output off after the capture.
+6. Repeat at the configured interval.
+
+Stop the process with `Ctrl+C`. The interrupt handler turns the GPIO output off and stops the camera.
+
+## Output Files
+
+Captured images are written under `CAPTURE_DIR` with names like:
 
 ```text
-/mnt/wdhdd/open_gravity/captures_isobaric_0523
+capture_YYYYMMDD_HHMMSS_microseconds.jpg
 ```
 
-Example sync pattern:
+Keep the timestamped filename format if downstream processing depends on chronological ordering.
+
+## Transferring Data
+
+Use a transfer method that only copies new images when moving captures to a processing machine. For example:
 
 ```bash
-rsync -avz --ignore-existing roberto@192.168.50.81:~/camera_test/data_images/ /mnt/wdhdd/open_gravity/captures_isobaric_0523/
+rsync -av --ignore-existing /path/to/captures/ user@processing-host:/path/to/destination/
 ```
 
-## Processing Images
+Do not delete raw capture files until the transfer and downstream processing outputs have been verified.
 
-The image processing pipeline lives outside this repo in the Open Gravity workspace. The current run pattern is:
+## Processing
 
-```bash
-source /home/rob/torch-cu126/bin/activate
-cd /mnt/wdhdd/open_gravity
-python3 new_image_processing.py
-```
+Image processing is intentionally separate from this capture script. A typical processing workflow should:
 
-This pipeline downloads new images, crops them, computes centroid outputs, and writes the downstream gravity analysis files used for plotting.
+1. Ingest newly captured JPG files.
+2. Crop or normalize the images if required.
+3. Extract the measurement feature, such as a centroid or position estimate.
+4. Write timestamped analysis outputs for plotting and comparison.
+5. Preserve enough metadata to trace processed results back to raw captures.
 
-## GitHub Workflow
-
-Local clone path on the node:
-
-```text
-/home/rob/repos/gravimeter_codes
-```
-
-Use the Alanclaw SSH key explicitly when pushing:
-
-```bash
-cd /home/rob/repos/gravimeter_codes
-GIT_SSH_COMMAND="ssh -i ~/.ssh/Alanclaw_key -o IdentitiesOnly=yes" git push origin main
-```
+Document any site-specific processing commands in deployment notes outside this generic repository guide.
