@@ -5,7 +5,6 @@ This repository contains utility code for the Open Gravity gravimeter setup.
 ## Files
 
 - `interval_capture_2.py` - runs on the Roberto Raspberry Pi. It captures one image every 60 seconds, turns the laser on before each capture, saves the image, then turns the laser back off.
-- `hello_world.py` - simple test script used to verify GitHub commit and push access.
 
 ## Roberto Image Capture
 
