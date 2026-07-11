@@ -11,3 +11,5 @@ This repository contains early gravimeter support code and documentation.
 - `LICENSE` - The project license.
 
 The code is focused on image capture for experimental gravimeter measurements.
+
+**No license is granted to the gravimeter hardware design, mechanical components, or any patent rights associated with the Mag-Grav-2 gravimeter or its operation.** All other rights, including but not limited to hardware designs, patents, and non-code intellectual property, are reserved.
